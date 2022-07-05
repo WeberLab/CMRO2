@@ -296,15 +296,15 @@ cat ${output}
 
         ## Find volume of tissue masks
         
-        csfvol=$(fslmaths ${maskdir}csf.nii.gz -V)
-        gmvol=$(fslmaths ${maskdir}cortgreymatter.nii.gz -V)
-        wmvol=$(fslmaths ${maskdir}whitematter.nii.gz -V)
-        bgvol=$(fslmaths ${maskdir}background.nii.gz -V)
-        ventvol=$(fslmaths ${maskdir}vent.nii.gz -V)
-        cerebellumvol=$(fslmaths ${maskdir}cerebellum.nii.gz -V)
-        deepgmvol=$(fslmaths ${maskdir}deepgrey.nii.gz -V)
-        brainstemvol=$(fslmaths ${maskdir}brainstem.nii.gz -V)
-        hipandamygvol=$(fslmaths ${maskdir}hipandamyg.nii.gz -V)
+        csfvol=$(fslstats ${maskdir}csf.nii.gz -V)
+        gmvol=$(fslstats ${maskdir}cortgreymatter.nii.gz -V)
+        wmvol=$(fslstats ${maskdir}whitematter.nii.gz -V)
+        bgvol=$(fslstats ${maskdir}background.nii.gz -V)
+        ventvol=$(fslstats ${maskdir}vent.nii.gz -V)
+        cerebellumvol=$(fslstats ${maskdir}cerebellum.nii.gz -V)
+        deepgmvol=$(fslstats ${maskdir}deepgrey.nii.gz -V)
+        brainstemvol=$(fslstats ${maskdir}brainstem.nii.gz -V)
+        hipandamygvol=$(fslstats ${maskdir}hipandamyg.nii.gz -V)
 
         ## Register tissues to QSM/chi
        
