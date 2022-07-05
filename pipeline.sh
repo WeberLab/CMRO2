@@ -1,6 +1,13 @@
 #!/bin/bash
 
+## Change paths for the following variables
+
 maindir=/mnt/Data/AnnaTmpFolder/
+qsmscript=~/Scripts/QSMauto/bashqsm.sh
+juliascript=${maindir}code/swi.jl
+cbfscript=${maindir}code/CBF_quantification.py
+cbftissue_script=${maindir}code/cbf_of_tissues.sh
+
 cd $maindir
 
 
@@ -167,10 +174,12 @@ cat ${output}
             -T1 sub-${subid}/anat/sub-${subid}_T1w.nii.gz -T2 sub-${subid}/anat/sub-${subid}_T2w.nii.gz -t ${threads}
         
         ## Move dHCP files into derivatives/dhcp directory
+
         mkdir -p ${maindir}derivatives/dhcp
         mv ${maindir}derivatives/sub-${subid} ${maindir}derivatives/dhcp
 
         ## Get locations of masks and brains
+
         dhcpanat=${maindir}
         workingt1=${dhcpanat}workdir/${subid}-${sesid}/restore/T1/${subid}-${sesid}_restore
         derivt1=${dhcpanat}derivatives/dhcp/sub-${subid}/ses-${sesid}/anat/sub-${subid}_ses-${sesid}_T1w_restore
@@ -193,6 +202,7 @@ cat ${output}
         [[ -f ${workingmask}.nii.gz ]] && mask=${workingmask}.nii.gz || mask=${derivmask}.nii.gz
 
         ## For subjects with dhcp files in workdir, move files from workdir to derivatives
+
         if [[ -f ${workingt1}.nii.gz && -f ${workingt2}.nii.gz && -f ${workingt2strip}.nii.gz && -f ${workingt2strip}.nii.gz && -f ${workingmask}.nii.gz ]]; then
             mkdir -p ${maindir}derivatives/dhcp/sub-${subid}/ses-${sesid}/anat/
             dhcpdir=${maindir}derivatives/dhcp/sub-${subid}/ses-${sesid}/anat/
@@ -229,7 +239,6 @@ cat ${output}
 
         ## Run code for QSM
 
-        qsmscript=~/Scripts/QSMauto/bashqsm.sh
         mkdir -p ${dhcpanat}derivatives/qsm/sub-${subid}
         ${qsmscript} ${dhcpanat}derivatives/qsm/sub-${subid} ${maindir}sourcedata/${subid}/Source/${qsm}/DICOM ${t2} ${maskdir}
 
@@ -237,12 +246,15 @@ cat ${output}
         cd ${qsmdir}
 
         ## Get last 3 echos of file
+
         fslroi chi.nii.gz chi_echo3-5 2 3 
 
         ## Get average over time of the last three echos
+
         fslmaths chi_echo3-5.nii.gz -Tmean chi_echo3-5_avg
 
         ## Threshold values below 0.15 and find mean of non-zero voxels (spits out X value for CSvO2)
+        
         chivein=$(fslstats chi_echo3-5_avg.nii.gz -l 0.15 -M) 
 
         echo "Chi value for CSvO2: $chivein"
@@ -253,7 +265,7 @@ cat ${output}
         cd ${maindir}
 
         mkdir -p derivatives/swi/sub-${subid}/
-        julia ${maindir}code/swi.jl ${subid} $PWD
+        julia ${juliascript} ${subid} $PWD
 
 
         ## Run code for ASL
@@ -261,25 +273,29 @@ cat ${output}
         mkdir -p derivatives/asl/sub-${subid}/
 
         ## Assign PW (asl) and PD (m0scan)
+
         pw=${maindir}sub-${subid}/perf/sub-${subid}_asl.nii.gz
         pd=${maindir}sub-${subid}/perf/sub-${subid}_m0scan.nii.gz
 
         ## Activate virtual envrionment (install nibabel as dependency on GPCC)
+        
         source ~/env1/bin/activate
 
         asldir=${maindir}derivatives/asl/sub-${subid}/
 
-        ${maindir}code/CBF_quantification.py -pw $pw -pd $pd -o ${maindir}derivatives/asl/sub-${subid}/CBF_map.nii.gz
+        ${cbfscript} -pw $pw -pd $pd -o ${maindir}derivatives/asl/sub-${subid}/CBF_map.nii.gz
 
-        cbf=$(${maindir}code/cbf_of_tissues.sh $asldir $pd $t2 $mask $dseg ${maindir}derivatives/asl/sub-${subid}/CBF_map.nii.gz $subid $sesid)
+        cbf=$(${cbftissue_script} $asldir $pd $t2 $mask $dseg ${maindir}derivatives/asl/sub-${subid}/CBF_map.nii.gz $subid $sesid)
 
         ## Deactivate virtual envrionment
+       
         deactivate
 
 
         ## Create variables and outputs for TSV file
 
         ## Find volume of tissue masks
+        
         csfvol=$(fslmaths ${maskdir}csf.nii.gz -V)
         gmvol=$(fslmaths ${maskdir}cortgreymatter.nii.gz -V)
         wmvol=$(fslmaths ${maskdir}whitematter.nii.gz -V)
@@ -291,6 +307,7 @@ cat ${output}
         hipandamygvol=$(fslmaths ${maskdir}hipandamyg.nii.gz -V)
 
         ## Register tissues to QSM/chi
+       
         chiavg=${qsmdir}chi_echo3-5_avg.nii.gz
 
         csfchi=$(fslstats ${chiavg} -k ${qsmdir}csf_wrapped_in_echo.nii.gz -M)
@@ -304,6 +321,7 @@ cat ${output}
         hipandamygchi=$(fslstats ${chiavg} -k ${qsmdir}hipandamyg_wrapped_in_echo.nii.gz -M)
 
         ## Register tissues to ASL/CBF
+       
         cbfmap=${maindir}derivatives/asl/sub-${subid}/CBF_map.nii.gz
 
         csfcbf=$(fslstats ${cbfmap} -k ${asldir}csf_in_pd.nii.gz -M)
