@@ -1,14 +1,17 @@
 #!/bin/bash
 
+## Written by Anna Zhu June 2022
+## Minor edits by Alex Weber July 2022
+
 ## Change paths for the following variables
 
-maindir=/mnt/Data/AnnaTmpFolder/
-qsmscript=~/Scripts/QSMauto/bashqsm.sh
-juliascript=${maindir}code/swi.jl
-cbfscript=${maindir}code/CBF_quantification.py
-cbftissue_script=${maindir}code/cbf_of_tissues.sh
+maindir=$PWD #Should be run from you main BIDS folder
+gitscripts=~/Scripts #you will want to clone the QSMauto, QSM.m, and BCCHR_ASL repos from github.com/WeberLab
 
-cd $maindir
+qsmscript=${gitscripts}/QSMauto/bashqsm.sh
+juliascript=${gitscripts}/CMRO2/swi.jl
+cbfscript=${gitscripts}/BCCHR_ASL/CBF_quantification.py
+cbftissue_script=${gitscripts}/BCCHR_ASL/cbf_of_tissues.sh
 
 
 ## Read input TSV file
@@ -17,7 +20,7 @@ if [ $# -lt 1 ];
   then
     echo "Syntax: pipeline [-f]"
     echo "options:"
-    echo "-f File name of tsv (e.g. /mnt/Data/AnnaTmpFolder/TSV/pipeline_input.tsv)"
+    echo "-f File name of tsv (e.g. /<maindir>/TSV/pipeline_input.tsv)"
     echo
     exit 1;
 fi
@@ -32,8 +35,8 @@ done
 
 ## Create output TSV file
 
-mkdir -p ${maindir}TSV
-output=/mnt/Data/AnnaTmpFolder/TSV/pipeline_output.tsv
+mkdir -p ${maindir}/TSV
+output=${maindir}/TSV/pipeline_output.tsv
 
 echo -e "Subject_ID\tdHCP_Pipeline\tCSF_Volume\tGM_Volume\tWM_Volume\tBg_Volume\tVentricle_Volume\tCerebellum_Volume \
 \tDeep_GM_Volume\tBrain_Stem_Volume\tHip_and_Amyg_Volume\tCSF_Chi\tGM_Chi\tWM_Chi\tBG_Chi \
@@ -80,14 +83,6 @@ cat ${output}
         elif [ "\t $qsm" == "" ]
         then
             echo "QSM DICOM number (e.g. 6) is empty or no value set"
-            missing=true
-        elif [ "\t $hct" == "" ]
-        then
-            echo "Hematocrit value (e.g. 0.318) is empty or no value set"
-            missing=true
-        elif [ "\t $csao2" == "" ]
-        then
-            echo "Cerebral arterial oxygen saturation value (e.g. 0.95) is empty or no value set"
             missing=true
         elif [ "\t $threads" == "" ]
         then
@@ -149,38 +144,38 @@ cat ${output}
         )
         jq -n --arg dcm2niixOptions "-b y -ba y -z y -f '%3s_%f_%d_%r'" \
             --argjson descriptions "[$innert1, $innert2, $innerasl, $innerasl2, $innerdirap, $innerdirpa]" \
-            '$ARGS.named' > sourcedata/${subid}/BIDS_config.json
+            '$ARGS.named' > ${maindir}/sourcedata/${subid}/BIDS_config.json
 
         #exit; 1
 
 
         ## Convert DICOM to NIfTI
 
-        mkdir -p ${maindir}tmp_dcm2bids/sub-${subid}
+        mkdir -p ${maindir}/tmp_dcm2bids/sub-${subid}
 
-        dcm2niix -o ${maindir}tmp_dcm2bids/sub-${subid} -b y -ba y -z y -f ‘%3s %f %d %r’ ${maindir}sourcedata/${subid}
+        dcm2niix -o ${maindir}/tmp_dcm2bids/sub-${subid} -b y -ba y -z y -f '%3s %f %d %r' ${maindir}/sourcedata/${subid}
 
 
         ## Run dcm2bids
 
-        dcm2bids -d sourcedata/${subid}/ -p ${subid} -c sourcedata/${subid}/BIDS_config.json -o . --forceDcm2niix
+        dcm2bids -d ${maindir}/sourcedata/${subid}/ -p ${subid} -c ${maindir}/sourcedata/${subid}/BIDS_config.json -o . --forceDcm2niix
 
 
         ## Run dHCP Anat
 
-        mkdir ${maindir}derivatives
+        mkdir ${maindir}/derivatives
 
-        docker run --rm -t -u $(id -u ${USER}):$(id -g ${USER}) -v $PWD:$PWD -w $PWD biomedia/dhcp-structural-pipeline:latest ${subid} ${sesid} ${age} \
-            -T1 sub-${subid}/anat/sub-${subid}_T1w.nii.gz -T2 sub-${subid}/anat/sub-${subid}_T2w.nii.gz -t ${threads}
-        
+        #docker run --rm -t -u $(id -u ${USER}):$(id -g ${USER}) -v $PWD:$PWD -w $PWD biomedia/dhcp-structural-pipeline:latest ${subid} ${sesid} ${age} \
+        #    -T1 sub-${subid}/anat/sub-${subid}_T1w.nii.gz -T2 sub-${subid}/anat/sub-${subid}_T2w.nii.gz -t ${threads}
+
         ## Move dHCP files into derivatives/dhcp directory
 
-        mkdir -p ${maindir}derivatives/dhcp
-        mv ${maindir}derivatives/sub-${subid} ${maindir}derivatives/dhcp
+        mkdir -p ${maindir}/derivatives/dhcp
+        mv ${maindir}/derivatives/sub-${subid} ${maindir}derivatives/dhcp
 
         ## Get locations of masks and brains
 
-        dhcpanat=${maindir}
+        dhcpanat=${maindir}/
         workingt1=${dhcpanat}workdir/${subid}-${sesid}/restore/T1/${subid}-${sesid}_restore
         derivt1=${dhcpanat}derivatives/dhcp/sub-${subid}/ses-${sesid}/anat/sub-${subid}_ses-${sesid}_T1w_restore
         [[ -f ${workingt1}.nii.gz ]] && t1=${workingt1}.nii.gz || t1=${derivt1}.nii.gz
@@ -223,8 +218,8 @@ cat ${output}
 
         ## Create individual tissue masks and directory
 
-        mkdir -p ${maindir}derivatives/dhcp/sub-${subid}/ses-${sesid}/masks/
-        maskdir=${maindir}derivatives/dhcp/sub-${subid}/ses-${sesid}/masks/
+        mkdir -p ${maindir}/derivatives/dhcp/sub-${subid}/ses-${sesid}/masks/
+        maskdir=${maindir}/derivatives/dhcp/sub-${subid}/ses-${sesid}/masks/
 
         fslmaths $dseg -thr 1 -uthr 1 -bin ${maskdir}csf
         fslmaths $dseg -thr 2 -uthr 2 -bin ${maskdir}cortgreymatter
@@ -240,33 +235,29 @@ cat ${output}
         ## Run code for QSM
 
         mkdir -p ${dhcpanat}derivatives/qsm/sub-${subid}
-        ${qsmscript} ${dhcpanat}derivatives/qsm/sub-${subid} ${maindir}sourcedata/${subid}/Source/${qsm}/DICOM ${t2} ${maskdir}
+        ${qsmscript} ${dhcpanat}derivatives/qsm/sub-${subid} ${maindir}/sourcedata/${subid}/${qsm}/DICOM ${t2} ${maskdir}
 
         qsmdir=${dhcpanat}derivatives/qsm/sub-${subid}/
-        cd ${qsmdir}
 
         ## Get last 3 echos of file
 
-        fslroi chi.nii.gz chi_echo3-5 2 3 
+        fslroi ${qsmdir}chi.nii.gz ${qsmdir}chi_echo3-5 2 3
 
         ## Get average over time of the last three echos
 
-        fslmaths chi_echo3-5.nii.gz -Tmean chi_echo3-5_avg
+        fslmaths ${qsmdir}chi_echo3-5.nii.gz -Tmean ${qsmdir}chi_echo3-5_avg
 
         ## Threshold values below 0.15 and find mean of non-zero voxels (spits out X value for CSvO2)
-        
-        chivein=$(fslstats chi_echo3-5_avg.nii.gz -l 0.15 -M) 
+
+        chivein=$(fslstats ${qsmdir}chi_echo3-5_avg.nii.gz -l 0.15 -M)
 
         echo "Chi value for CSvO2: $chivein"
 
 
         ## Run code for SWI/R2*
 
-        cd ${maindir}
-
         mkdir -p derivatives/swi/sub-${subid}/
         julia ${juliascript} ${subid} $PWD
-
 
         ## Run code for ASL
 
@@ -274,14 +265,14 @@ cat ${output}
 
         ## Assign PW (asl) and PD (m0scan)
 
-        pw=${maindir}sub-${subid}/perf/sub-${subid}_asl.nii.gz
-        pd=${maindir}sub-${subid}/perf/sub-${subid}_m0scan.nii.gz
+        pw=${maindir}/sub-${subid}/perf/sub-${subid}_asl.nii.gz
+        pd=${maindir}/sub-${subid}/perf/sub-${subid}_m0scan.nii.gz
 
         ## Activate virtual envrionment (install nibabel as dependency on GPCC)
-        
+
         source ~/env1/bin/activate
 
-        asldir=${maindir}derivatives/asl/sub-${subid}/
+        asldir=${maindir}/derivatives/asl/sub-${subid}/
 
         ${cbfscript} -pw $pw -pd $pd -o ${maindir}derivatives/asl/sub-${subid}/CBF_map.nii.gz
 
