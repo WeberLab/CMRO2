@@ -2,11 +2,11 @@ using CLEARSWI
 
 TEs = [5,10.24,15.48,20.72,25.96] # change this to the Echo Time of your sequence. For multi-echoes, set a list of TE values, else set a list with a single TE value.
 subject = string("sub-", ARGS[1])
-qsmfolder = joinpath(ARGS[2], "derivatives", subject, "qsm")
-outfolder = joinpath(ARGS[2], "derivatives", subject, "swi")
+qsmfolder = joinpath(ARGS[2], "derivatives/qsm", subject)
+outfolder = joinpath(ARGS[2], "derivatives/swi", subject)
 magfile = joinpath(qsmfolder, "mag.nii.gz") # Path to the magnitude image in nifti format, must be .nii or .hdr
 phasefile = joinpath(qsmfolder, "phas.nii.gz") # Path to the phase image
-maskfile = joinpath(qsmfolder, "mask_warped_in_echo.nii.gz")
+maskfile = joinpath(qsmfolder, "mag_echo5_sqr_brain_mask.nii.gz")
 
 
 mag = readmag(magfile);

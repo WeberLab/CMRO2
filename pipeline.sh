@@ -10,7 +10,7 @@ gitscripts=~/Scripts #you will want to clone the QSMauto, QSM.m, and BCCHR_ASL r
 
 qsmscript=${gitscripts}/QSMauto/bashqsm.sh
 juliascript=${gitscripts}/CMRO2/swi.jl
-cbfscript=${gitscripts}/BCCHR_ASL/CBF_quantification.py
+cbfscript=${gitscripts}/BCCHR_ASL/CBF_quantification_v2.py
 cbftissue_script=${gitscripts}/BCCHR_ASL/cbf_of_tissues.sh
 
 
@@ -158,7 +158,7 @@ cat ${output}
 
         ## Run dcm2bids
 
-#        dcm2bids -d ${maindir}/sourcedata/${subid}/ -p ${subid} -c ${maindir}/sourcedata/${subid}/BIDS_config.json -o . --forceDcm2niix
+        dcm2bids -d ${maindir}/sourcedata/${subid}/ -p ${subid} -c ${maindir}/sourcedata/${subid}/BIDS_config.json -o . --forceDcm2niix
 
 
         ## Run dHCP Anat
@@ -170,8 +170,8 @@ cat ${output}
 
         ## Move dHCP files into derivatives/dhcp directory
 
-#        mkdir -p ${maindir}/derivatives/dhcp
-#        mv ${maindir}/derivatives/sub-${subid} ${maindir}derivatives/dhcp
+        mkdir -p ${maindir}/derivatives/dhcp
+        mv ${maindir}/derivatives/sub-${subid} ${maindir}/derivatives/dhcp
 
         ## Get locations of masks and brains
 
@@ -199,8 +199,8 @@ cat ${output}
         ## For subjects with dhcp files in workdir, move files from workdir to derivatives
 
         if [[ -f ${workingt1}.nii.gz && -f ${workingt2}.nii.gz && -f ${workingt2strip}.nii.gz && -f ${workingt2strip}.nii.gz && -f ${workingmask}.nii.gz ]]; then
-            mkdir -p ${maindir}derivatives/dhcp/sub-${subid}/ses-${sesid}/anat/
-            dhcpdir=${maindir}derivatives/dhcp/sub-${subid}/ses-${sesid}/anat/
+            mkdir -p ${maindir}/derivatives/dhcp/sub-${subid}/ses-${sesid}/anat/
+            dhcpdir=${maindir}/derivatives/dhcp/sub-${subid}/ses-${sesid}/anat/
 
             cp ${t1} ${dhcpdir}sub-${subid}_ses-${sesid}_T1w_restore.nii.gz
             cp ${t2} ${dhcpdir}sub-${subid}_ses-${sesid}_T2w_restore.nii.gz
@@ -208,7 +208,8 @@ cat ${output}
             cp ${dseg} ${dhcpdir}sub-${subid}_ses-${sesid}_drawem_tissue_labels.nii.gz
             cp ${mask} ${dhcpdir}sub-${subid}_ses-${sesid}_brainmask_drawem.nii.gz
 
-            echo "dhcp pipeline for this subject did not run successfully, files in this directory are copied from workdir" > ${dhcpdir}/readme.txt
+            echo "dhcp pipeline for this subject did not run successfully, files in this directory are copied from workdir" > ${dhcpdir}readme.txt
+            echo "dhcp pipeline for this subject did not run successfully"
             dhcp_status="Unsuccessful"
         else
             echo "dhcp pipeline successfully run, all files in derivatives directory"
@@ -251,7 +252,7 @@ cat ${output}
 
         chivein_thr=$(fslstats ${qsmdir}chi_echo3-5_avg.nii.gz -l 0.15 -M)
 
-        echo "Chi value for CSvO2: $chivein"
+        echo "Chi value for CSvO2: $chivein_thr"
 
 
         ## Run code for SWI/R2*
@@ -270,7 +271,7 @@ cat ${output}
 
         ## Activate virtual envrionment (install nibabel as dependency on GPCC)
 
-        source ~/env1/bin/activate
+        source ${gitscripts}/CMRO2/env1/bin/activate
 
         asldir=${maindir}/derivatives/asl/sub-${subid}/
 
@@ -287,29 +288,29 @@ cat ${output}
 
         ## Find volume of tissue masks
 
-        csfvol=$(fslstats ${maskdir}csf.nii.gz -V)
-        gmvol=$(fslstats ${maskdir}cortgreymatter.nii.gz -V)
-        wmvol=$(fslstats ${maskdir}whitematter.nii.gz -V)
-        bgvol=$(fslstats ${maskdir}background.nii.gz -V)
-        ventvol=$(fslstats ${maskdir}vent.nii.gz -V)
-        cerebellumvol=$(fslstats ${maskdir}cerebellum.nii.gz -V)
-        deepgmvol=$(fslstats ${maskdir}deepgrey.nii.gz -V)
-        brainstemvol=$(fslstats ${maskdir}brainstem.nii.gz -V)
-        hipandamygvol=$(fslstats ${maskdir}hipandamyg.nii.gz -V)
+        csfvol=$(fslstats ${maskdir}csf.nii.gz -V | awk '{print $2}')
+        gmvol=$(fslstats ${maskdir}cortgreymatter.nii.gz -V | awk '{print $2}')
+        wmvol=$(fslstats ${maskdir}whitematter.nii.gz -V | awk '{print $2}')
+        bgvol=$(fslstats ${maskdir}background.nii.gz -V | awk '{print $2}')
+        ventvol=$(fslstats ${maskdir}vent.nii.gz -V | awk '{print $2}')
+        cerebellumvol=$(fslstats ${maskdir}cerebellum.nii.gz -V | awk '{print $2}')
+        deepgmvol=$(fslstats ${maskdir}deepgrey.nii.gz -V | awk '{print $2}')
+        brainstemvol=$(fslstats ${maskdir}brainstem.nii.gz -V | awk '{print $2}')
+        hipandamygvol=$(fslstats ${maskdir}hipandamyg.nii.gz -V | awk '{print $2}')
 
         ## Register tissues to QSM/chi
 
         chiavg=${qsmdir}chi_echo3-5_avg.nii.gz
 
-        csfchi=$(fslstats ${chiavg} -k ${qsmdir}csf_wrapped_in_echo.nii.gz -M)
-        gmchi=$(fslstats ${chiavg} -k ${qsmdir}cortgreymatter_wrapped_in_echo.nii.gz -M)
-        wmchi=$(fslstats ${chiavg} -k ${qsmdir}whitematter_wrapped_in_echo.nii.gz -M)
-        bgchi=$(fslstats ${chiavg} -k ${qsmdir}background_wrapped_in_echo.nii.gz -M)
-        ventchi=$(fslstats ${chiavg} -k ${qsmdir}vent_wrapped_in_echo.nii.gz -M)
-        cerebellumchi=$(fslstats ${chiavg} -k ${qsmdir}cerebellum_wrapped_in_echo.nii.gz -M)
-        deepgmchi=$(fslstats ${chiavg} -k ${qsmdir}deepgrey_wrapped_in_echo.nii.gz -M)
-        brainstemchi=$(fslstats ${chiavg} -k ${qsmdir}brainstem_wrapped_in_echo.nii.gz -M)
-        hipandamygchi=$(fslstats ${chiavg} -k ${qsmdir}hipandamyg_wrapped_in_echo.nii.gz -M)
+        csfchi=$(fslstats ${chiavg} -k ${qsmdir}csf_warped_in_echo.nii.gz -M)
+        gmchi=$(fslstats ${chiavg} -k ${qsmdir}cortgreymatter_warped_in_echo.nii.gz -M)
+        wmchi=$(fslstats ${chiavg} -k ${qsmdir}whitematter_warped_in_echo.nii.gz -M)
+        bgchi=$(fslstats ${chiavg} -k ${qsmdir}background_warped_in_echo.nii.gz -M)
+        ventchi=$(fslstats ${chiavg} -k ${qsmdir}vent_warped_in_echo.nii.gz -M)
+        cerebellumchi=$(fslstats ${chiavg} -k ${qsmdir}cerebellum_warped_in_echo.nii.gz -M)
+        deepgmchi=$(fslstats ${chiavg} -k ${qsmdir}deepgrey_warped_in_echo.nii.gz -M)
+        brainstemchi=$(fslstats ${chiavg} -k ${qsmdir}brainstem_warped_in_echo.nii.gz -M)
+        hipandamygchi=$(fslstats ${chiavg} -k ${qsmdir}hipandamyg_warped_in_echo.nii.gz -M)
         veinchi=$(fslstats ${chiavg} -k ${qsmdir}vein_seg.nii -l 0.1 -M)
 
         ## Register tissues to ASL/CBF
