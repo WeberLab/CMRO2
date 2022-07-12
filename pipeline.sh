@@ -40,7 +40,7 @@ output=${maindir}/TSV/pipeline_output.tsv
 
 echo -e "Subject_ID\tdHCP_Pipeline\tCSF_Volume\tGM_Volume\tWM_Volume\tBg_Volume\tVentricle_Volume\tCerebellum_Volume \
 \tDeep_GM_Volume\tBrain_Stem_Volume\tHip_and_Amyg_Volume\tCSF_Chi\tGM_Chi\tWM_Chi\tBG_Chi \
-\tVentricle_Chi\tCerebellum_Chi\tDeep_GM_Chi\tBrain_Stem_Chi\tHip_and_Amyg_Chi\tAvg_Chi_Vein\tCSF_CBF \
+\tVentricle_Chi\tCerebellum_Chi\tDeep_GM_Chi\tBrain_Stem_Chi\tHip_and_Amyg_Chi\tAvg_Chi_Vein_p15thr\tAvg_Chi_Vein_Segmen_p1thr\tCSF_CBF \
 \tGM_CBF\tWM_CBF\tBG_CBF\tVentricle_CBF\tCerebellum_CBF\tDeep_GM_CBF\tBrain_Stem_CBF\tHip_and_Amyg_CBF" > ${output}
 cat ${output}
 
@@ -49,7 +49,7 @@ cat ${output}
 
 {
     read
-    while IFS=$'\t', read -r subjectid age t1w t2w asl dirap dirpa qsm hct csao2 threads
+    while IFS=$'\t', read -r subjectid age t1w t2w asl dirap dirpa qsm threads
     do
         missing=false
         if [ "\t $subjectid" == "" ]
@@ -151,27 +151,27 @@ cat ${output}
 
         ## Convert DICOM to NIfTI
 
-        mkdir -p ${maindir}/tmp_dcm2bids/sub-${subid}
+#        mkdir -p ${maindir}/tmp_dcm2bids/sub-${subid}
 
-        dcm2niix -o ${maindir}/tmp_dcm2bids/sub-${subid} -b y -ba y -z y -f '%3s %f %d %r' ${maindir}/sourcedata/${subid}
+#        dcm2niix -o ${maindir}/tmp_dcm2bids/sub-${subid} -b y -ba y -z y -f '%3s %f %d %r' ${maindir}/sourcedata/${subid}
 
 
         ## Run dcm2bids
 
-        dcm2bids -d ${maindir}/sourcedata/${subid}/ -p ${subid} -c ${maindir}/sourcedata/${subid}/BIDS_config.json -o . --forceDcm2niix
+#        dcm2bids -d ${maindir}/sourcedata/${subid}/ -p ${subid} -c ${maindir}/sourcedata/${subid}/BIDS_config.json -o . --forceDcm2niix
 
 
         ## Run dHCP Anat
 
-        mkdir ${maindir}/derivatives
+#        mkdir ${maindir}/derivatives
 
-        #docker run --rm -t -u $(id -u ${USER}):$(id -g ${USER}) -v $PWD:$PWD -w $PWD biomedia/dhcp-structural-pipeline:latest ${subid} ${sesid} ${age} \
-        #    -T1 sub-${subid}/anat/sub-${subid}_T1w.nii.gz -T2 sub-${subid}/anat/sub-${subid}_T2w.nii.gz -t ${threads}
+#        docker run --rm -t -u $(id -u ${USER}):$(id -g ${USER}) -v $PWD:$PWD -w $PWD biomedia/dhcp-structural-pipeline:latest ${subid} ${sesid} ${age} \
+#            -T1 sub-${subid}/anat/sub-${subid}_T1w.nii.gz -T2 sub-${subid}/anat/sub-${subid}_T2w.nii.gz -t ${threads}
 
         ## Move dHCP files into derivatives/dhcp directory
 
-        mkdir -p ${maindir}/derivatives/dhcp
-        mv ${maindir}/derivatives/sub-${subid} ${maindir}derivatives/dhcp
+#        mkdir -p ${maindir}/derivatives/dhcp
+#        mv ${maindir}/derivatives/sub-${subid} ${maindir}derivatives/dhcp
 
         ## Get locations of masks and brains
 
@@ -249,7 +249,7 @@ cat ${output}
 
         ## Threshold values below 0.15 and find mean of non-zero voxels (spits out X value for CSvO2)
 
-        chivein=$(fslstats ${qsmdir}chi_echo3-5_avg.nii.gz -l 0.15 -M)
+        chivein_thr=$(fslstats ${qsmdir}chi_echo3-5_avg.nii.gz -l 0.15 -M)
 
         echo "Chi value for CSvO2: $chivein"
 
@@ -274,19 +274,19 @@ cat ${output}
 
         asldir=${maindir}/derivatives/asl/sub-${subid}/
 
-        ${cbfscript} -pw $pw -pd $pd -o ${maindir}derivatives/asl/sub-${subid}/CBF_map.nii.gz
+        ${cbfscript} -pw $pw -pd $pd -o ${maindir}/derivatives/asl/sub-${subid}/CBF_map.nii.gz
 
-        cbf=$(${cbftissue_script} $asldir $pd $t2 $mask $dseg ${maindir}derivatives/asl/sub-${subid}/CBF_map.nii.gz $subid $sesid)
+        cbf=$(${cbftissue_script} $asldir $pd $t2 $mask $dseg ${maindir}/derivatives/asl/sub-${subid}/CBF_map.nii.gz $subid $sesid)
 
         ## Deactivate virtual envrionment
-       
+
         deactivate
 
 
         ## Create variables and outputs for TSV file
 
         ## Find volume of tissue masks
-        
+
         csfvol=$(fslstats ${maskdir}csf.nii.gz -V)
         gmvol=$(fslstats ${maskdir}cortgreymatter.nii.gz -V)
         wmvol=$(fslstats ${maskdir}whitematter.nii.gz -V)
@@ -298,7 +298,7 @@ cat ${output}
         hipandamygvol=$(fslstats ${maskdir}hipandamyg.nii.gz -V)
 
         ## Register tissues to QSM/chi
-       
+
         chiavg=${qsmdir}chi_echo3-5_avg.nii.gz
 
         csfchi=$(fslstats ${chiavg} -k ${qsmdir}csf_wrapped_in_echo.nii.gz -M)
@@ -310,10 +310,11 @@ cat ${output}
         deepgmchi=$(fslstats ${chiavg} -k ${qsmdir}deepgrey_wrapped_in_echo.nii.gz -M)
         brainstemchi=$(fslstats ${chiavg} -k ${qsmdir}brainstem_wrapped_in_echo.nii.gz -M)
         hipandamygchi=$(fslstats ${chiavg} -k ${qsmdir}hipandamyg_wrapped_in_echo.nii.gz -M)
+        veinchi=$(fslstats ${chiavg} -k ${qsmdir}vein_seg.nii -l 0.1 -M)
 
         ## Register tissues to ASL/CBF
-       
-        cbfmap=${maindir}derivatives/asl/sub-${subid}/CBF_map.nii.gz
+
+        cbfmap=${maindir}/derivatives/asl/sub-${subid}/CBF_map.nii.gz
 
         csfcbf=$(fslstats ${cbfmap} -k ${asldir}csf_in_pd.nii.gz -M)
         gmcbf=$(fslstats ${cbfmap} -k ${asldir}cortgreymatter_in_pd.nii.gz -M)
@@ -330,7 +331,7 @@ cat ${output}
 
         echo -e "$subid\t$dhcp_status\t$csfvol\t$gmvol\t$wmvol\t$bgvol\t$ventvol\t$cerebellumvol\t$deepgmvol \
         \t$brainstemvol\t$hipandamygvol\t$csfchi\t$gmchi\t$wmchi\t$bgchi\t$ventchi\t$cerebellumchi \
-        \t$deepgmchi\t$brainstemchi\t$hipandamygchi\t$chivein\t$csfcbf\t$gmcbf\t$wmcbf\t$bgcbf\t$ventcbf \
+        \t$deepgmchi\t$brainstemchi\t$hipandamygchi\t$chivein_thr\t$veinchi\t$csfcbf\t$gmcbf\t$wmcbf\t$bgcbf\t$ventcbf \
         \t$cerebellumcbf\t$deepgmcbf\t$brainstemcbf\t$hipandamygcbf" >> ${output}
         cat ${output}
     done
